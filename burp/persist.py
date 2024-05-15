@@ -1,6 +1,11 @@
 import os 
 import json 
 import pickle
+from typing import (
+    List,
+    Optional,
+    Dict
+)
 
 class DataPersistSettings:
     """
@@ -63,6 +68,8 @@ class DataPersister:
 
         except Exception as e:
             raise Exception(f"Error saving data to file: {db_filepath} with error {e}")
+        else:
+            print(f"The table {db_filepath} already exists")
         print(db_filepath)
         self.db_filepath = db_filepath
         return db_filepath
@@ -80,8 +87,51 @@ class DataPersister:
         """
         return os.path.exists(path)
     
+    def save_data(self, data: Dict,
+                  file_name: str,
+                  folder_name: str,
+                  extension: str,
+                  encoding: str = None,
+                  )-> str: 
+        """
+        Saves the data
+
+        Args:
+            folder_name: The path to the folder.
+            file_name: The file name.
+            extension: The extension of the file defaults = 'json'.
+            encoding: Optional 
+
+        Returns:
+            str: file path to the saved data locally.
+        """
+        if not encoding:
+            encoding = self.settings.encoding
+        filepath = os.path.join(os.getcwd(), folder_name, file_name + extension)
+        self.filepath = filepath
+        print(self.filepath)
+        if not self.check_exists(self.filepath):
+            print(f"The given file path:  {filepath} does not exist")
+        else:
+            print("File already exists")
+        try:
+            # Open the file in read mode
+            # Handle cases where the file is missing or corrupt
+            #os.chmod(self.filepath, self.file_permissions)
+            # print(f"Permission to the file {filepath} is granted")
+            with open(self.filepath, 'r') as persistent_file:
+                # Load existing data as a dictionary
+                existing_data = json.load(persistent_file)
+        except (FileNotFoundError, json.JSONDecodeError):
+            existing_data = {}
+        existing_data.update(data)
+        print(existing_data)
+        with open(self.filepath, 'w') as persistent_file:
+            json.dump(existing_data, persistent_file, indent=self.indent)
+        return self.filepath
     
-    def add_data(self, 
+    #Not in use as of now
+    def add_single_data(self, 
                            folder_name: str,
                            filename: str,
                            extension: str,

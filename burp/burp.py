@@ -42,6 +42,9 @@ class Burp:
         status = self._create_db_instance()
         if not status:
             raise ConnectionError(f"Something went wrong while trying to create a db instance with name {db_name}")
+        if self.db_instance.check_exists(os.path.join(os.getcwd(), self.db_name)):
+            # print(f"The database with name {table_name} already exists")
+            print(f"The database with name {db_name} already exists")
         return self.db_instance
     
        
@@ -64,6 +67,23 @@ class Burp:
         self.filepath = filepath
         return self.filepath
     
+    def _table_name_id_exists(self, id:int):
+        """ Check if the table with self.table name exists
+        and whether it contains id object in it
+
+        Args:
+            id (int): ID of the user
+
+        Raises:
+            KeyError: No table name existing
+            KeyError: The id not found in the table
+        """
+        if not self.table_name:
+            raise KeyError(f"There is not table to search from")
+        if not self.tables[self.table_name].get(id):
+            raise KeyError(f"The id {id} does not exist in the table")
+        return True
+    
     
     def create_table(self, table_name: str, auto_increment=True):
         """ Create a new table 
@@ -79,14 +99,15 @@ class Burp:
         """
         
         if self.tables.get(table_name)  is not None:
-            raise ValueError(f"A table with name {table_name} already exists")
+            print(f"A table with name {table_name} already exists")
         self.tables[table_name] = {}
         if auto_increment:
             self.auto_inc_status = True
 
         filepath = os.path.join(self.settings.folder + table_name + self.settings.extension)
         if self.db_instance.check_exists(filepath):
-            raise ValueError(f"The database with name {table_name} already exists")
+            # print(f"The database with name {table_name} already exists")
+            return f"The table with name {table_name} already exists"
         self.table_name = table_name
         try:
             self._create_table_file_and_save()
@@ -95,7 +116,7 @@ class Burp:
             print(f"An unexpected error occurred: {type(e).__name__} - {e}")
     
     
-    def add(self, table_name: str, data: dict):
+    def add_one(self, table_name: str, data: dict):
         """Add Data to the table
 
         Args:
@@ -107,23 +128,88 @@ class Burp:
             KeyError: The given structure does not match the predefined structure 
         """
         if self.tables.get(table_name) is  None:
-            raise ValueError(f"A table with name {table_name} does not exists")
+            print(f"A table with name {table_name} does not exists")
         # if list(data.keys()) != list(self.tables[table_name].keys()):
         #     raise KeyError(f"The schema of the given data does not match with the predefined schema")
         self.tables[table_name][self.auto_inc_id] = data
         self._auto_increment_id()
-        self._append_data_to_db(table_name)
+        #self._append_data_to_db(table_name)
+        return self.auto_inc_id-1
+    
+        
+    def delete(self, id: int):
+        """ Delete a value from the table 
+
+        Args:
+            id (int): id of the doc
+        """
+        if not self._table_name_id_exists(id):
+            print("ID or table not found")
+        del self.tables[self.table_name][id]
+        return f"Deleted the id {id} successfully"
     
     
+    def update(self, id: int, data: dict):
+        """ Update the data 
+
+        Args:
+            id (int): ID of the object to update
+            data (dict): data which is to be updated 
+        """
+        if not self._table_name_id_exists(id):
+            print("ID or table not found")
+        for key, value in data.items():
+            self.tables[self.table_name][id][key] = value
+        return self.tables[self.table_name][id]
+    
+    
+    def get_one(self, id: int):
+        """ Get one object from the table
+
+        Args:
+            id (int): ID of the object
+        Returns:
+            dict: object of the data
+        """
+        self._table_name_id_exists(id)
+        return self.tables[self.table_name][id]
+    
+    
+    def get_all(self):
+        """ Get all the data in memory
+        Returns:
+            List[dict] : list of all the objects
+        """
+        if not self.tables.get(self.table_name) or not self.table_name:
+            return "Table name does not exists"
+        return self.tables[self.table_name]
+    
+    def save_snapshot(self):
+        """ Save a snapshot of the in memory data to a file with structures as db_name/table_name.[extension]
+
+        Returns:
+            str: Message 
+        """
+        if not self.table_name:
+            print("Table name does not exist")
+        if not self.tables.get(self.table_name):
+            print("Table name not found")
+        status = self.db_instance.save_data(self.tables[self.table_name], self.table_name, self.db_name, self.settings.extension)
+        if status:
+            return "Data saved successfull"
+        
+        
     def _auto_increment_id(self):
         if self.auto_inc_status:
             self.auto_inc_id += 1
     
     
+    # This is will not work for now
     def _append_data_to_db(self, table_name: str):
         if self.tables.get(table_name) is None:
             raise KeyError(f"The table name: {table_name} does not exist")
-        self.db_instance.add_data(self.db_name, table_name, self.settings.extension, self.auto_inc_id-1, self.tables[table_name][self.auto_inc_id-1], self.settings.encoding)
+        self.db_instance.add_single_data(self.db_name, table_name, self.settings.extension, self.auto_inc_id-1, self.tables[table_name][self.auto_inc_id-1], self.settings.encoding)
+        
             
 
         
