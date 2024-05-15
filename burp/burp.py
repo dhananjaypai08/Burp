@@ -18,7 +18,7 @@ class Burp:
         self.auto_inc_id = 0
         self.auto_inc_status = False
         self.starter_file = "base"
-        self.table_name = None
+        self.table_name = ""
     
     
     def create_database(self, db_name: str, encoding=None, save="auto"):
@@ -78,9 +78,9 @@ class Burp:
             KeyError: No table name existing
             KeyError: The id not found in the table
         """
-        if not self.table_name:
+        if self.table_name == "":
             raise KeyError(f"There is not table to search from")
-        if not self.tables[self.table_name].get(id):
+        if self.tables[self.table_name].get(id) is None:
             raise KeyError(f"The id {id} does not exist in the table")
         return True
     
@@ -146,6 +146,7 @@ class Burp:
         if not self._table_name_id_exists(id):
             print("ID or table not found")
         del self.tables[self.table_name][id]
+        print(self.tables)
         return f"Deleted the id {id} successfully"
     
     
@@ -180,7 +181,7 @@ class Burp:
         Returns:
             List[dict] : list of all the objects
         """
-        if not self.tables.get(self.table_name) or not self.table_name:
+        if self.tables.get(self.table_name) is None or self.table_name == "":
             return "Table name does not exists"
         return self.tables[self.table_name]
     
@@ -190,9 +191,9 @@ class Burp:
         Returns:
             str: Message 
         """
-        if not self.table_name:
+        if self.table_name == "":
             print("Table name does not exist")
-        if not self.tables.get(self.table_name):
+        if self.tables.get(self.table_name) is None:
             print("Table name not found")
         status = self.db_instance.save_data(self.tables[self.table_name], self.table_name, self.db_name, self.settings.extension)
         if status:
