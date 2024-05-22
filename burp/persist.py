@@ -6,6 +6,7 @@ from typing import (
     Optional,
     Dict
 )
+import msvcrt
 
 class DataPersistSettings:
     """
@@ -119,16 +120,42 @@ class DataPersister:
             # Handle cases where the file is missing or corrupt
             #os.chmod(self.filepath, self.file_permissions)
             # print(f"Permission to the file {filepath} is granted")
-            with open(self.filepath, 'r') as persistent_file:
-                # Load existing data as a dictionary
+            with open(self.filepath, 'r+') as persistent_file:
                 existing_data = json.load(persistent_file)
+                if not existing_data:
+                    existing_data = {}
+                existing_data.update(data)
+                
         except (FileNotFoundError, json.JSONDecodeError):
-            existing_data = {}
-        existing_data.update(data)
+            print(f"The file not found {filepath}")
         print(existing_data)
-        with open(self.filepath, 'w') as persistent_file:
-            json.dump(existing_data, persistent_file, indent=self.indent)
+        try:
+            with open(self.filepath, 'w') as persistent_file:
+                print("Locking the file")
+                msvcrt.locking(persistent_file.fileno(), msvcrt.LK_NBLCK, 100)  # Acquire lock with timeout in 100ms
+                print("File locked")
+                json.dump(existing_data, persistent_file, indent=self.indent)
+                msvcrt.locking(persistent_file.fileno(), msvcrt.LK_UNLCK, 100) # Unlock the file
+                print("File unlocked")
+        # Load existing data as a dictionary  
+        except BlockingIOError:  # Handle lock acquisition timeout
+            print("Failed to acquire lock on file. Retrying...")
+            # Implement retry logic or error handling as needed
+
+        finally:
+            # Release the lock after writing (assuming successful acquisition)
+            print(f"The status of the file is : {persistent_file.closed}")
+
         return self.filepath
+    
+    def delete_file(self, file_name: str, folder_name: str, extension: str):
+        filepath = os.path.join(os.getcwd(), folder_name, file_name + extension)
+        # Delete the file
+        try:
+            os.remove(filepath)
+            print(f"File '{filepath}' deleted successfully.")
+        except FileNotFoundError:
+            print(f"File '{filepath}' not found.")
     
     #Not in use as of now
     def add_single_data(self, 

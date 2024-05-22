@@ -85,7 +85,7 @@ class Burp:
         return True
     
     
-    def create_table(self, table_name: str, auto_increment=True):
+    def create_table(self, table_name: str, extension: str = None, auto_increment=True):
         """ Create a new table 
 
         Args:
@@ -108,6 +108,8 @@ class Burp:
         if self.db_instance.check_exists(filepath):
             # print(f"The database with name {table_name} already exists")
             return f"The table with name {table_name} already exists"
+        if extension:
+            self.settings.extension = extension
         self.table_name = table_name
         try:
             self._create_table_file_and_save()
@@ -116,7 +118,7 @@ class Burp:
             print(f"An unexpected error occurred: {type(e).__name__} - {e}")
     
     
-    def add_one(self, table_name: str, data: dict):
+    def add_one(self, data: dict):
         """Add Data to the table
 
         Args:
@@ -127,11 +129,11 @@ class Burp:
             ValueError: A table with that name already exists
             KeyError: The given structure does not match the predefined structure 
         """
-        if self.tables.get(table_name) is  None:
-            print(f"A table with name {table_name} does not exists")
+        if self.table_name is  None:
+            print(f"A table with name {self.table_name} does not exists")
         # if list(data.keys()) != list(self.tables[table_name].keys()):
         #     raise KeyError(f"The schema of the given data does not match with the predefined schema")
-        self.tables[table_name][self.auto_inc_id] = data
+        self.tables[self.table_name][self.auto_inc_id] = data
         self._auto_increment_id()
         #self._append_data_to_db(table_name)
         return self.auto_inc_id-1
@@ -163,6 +165,18 @@ class Burp:
             self.tables[self.table_name][id][key] = value
         return self.tables[self.table_name][id]
     
+    def delete_table(self):
+        """ Delete the table
+
+        Returns:
+            str: status of the operation
+        """
+        if self.table_name  is not None:
+            print(f"A table with name {self.table_name} already exists")
+        self.db_instance.delete_file(self.table_name, self.db_name, self.settings.extension)
+        deleted_table = self.table_name
+        self.table_name = None
+        return f"Table with name: {deleted_table} has been deleted"
     
     def get_one(self, id: int):
         """ Get one object from the table
