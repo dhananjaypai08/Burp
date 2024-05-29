@@ -7,7 +7,7 @@ from setuptools import find_packages, setup
 
 
 setup(
-    name="number-parser",
+    name="burp",
     version=0.0.0,
     description="An in memory db with snapshots to json",
     # long_description=open("README.rst", encoding="utf8").read()

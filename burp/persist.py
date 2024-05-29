@@ -115,26 +115,27 @@ class DataPersister:
             print(f"The given file path:  {filepath} does not exist")
         else:
             print("File already exists")
-        try:
-            # Open the file in read mode
-            # Handle cases where the file is missing or corrupt
-            #os.chmod(self.filepath, self.file_permissions)
-            # print(f"Permission to the file {filepath} is granted")
-            with open(self.filepath, 'r+') as persistent_file:
-                existing_data = json.load(persistent_file)
-                if not existing_data:
-                    existing_data = {}
-                existing_data.update(data)
+        # try:
+        #     # Open the file in read mode
+        #     # Handle cases where the file is missing or corrupt
+        #     #os.chmod(self.filepath, self.file_permissions)
+        #     # print(f"Permission to the file {filepath} is granted")
+        #     with open(self.filepath, 'r+') as persistent_file:
+        #         existing_data = json.load(persistent_file)
+        #         if not existing_data:
+        #             existing_data = {}
+        #         existing_data.update(data)
                 
-        except (FileNotFoundError, json.JSONDecodeError):
-            print(f"The file not found {filepath}")
-        print(existing_data)
+        # except (FileNotFoundError, json.JSONDecodeError):
+        #     print(f"The file not found {filepath}")
+        # print(existing_data)
+        print(data)
         try:
             with open(self.filepath, 'w') as persistent_file:
                 print("Locking the file")
                 msvcrt.locking(persistent_file.fileno(), msvcrt.LK_NBLCK, 100)  # Acquire lock with timeout in 100ms
                 print("File locked")
-                json.dump(existing_data, persistent_file, indent=self.indent)
+                json.dump(data, persistent_file, indent=self.indent)
                 msvcrt.locking(persistent_file.fileno(), msvcrt.LK_UNLCK, 100) # Unlock the file
                 print("File unlocked")
         # Load existing data as a dictionary  
@@ -156,6 +157,33 @@ class DataPersister:
             print(f"File '{filepath}' deleted successfully.")
         except FileNotFoundError:
             print(f"File '{filepath}' not found.")
+            
+    def load_data(self, folder_name: str, file_name: str, extension: str):
+        filepath = os.path.join(os.getcwd(), folder_name, file_name + extension)
+        self.filepath = filepath
+        if self.check_exists(filepath):
+            print("Loading data...")
+            try:
+                with open(self.filepath, 'r') as persistent_file:
+                    existing_data = json.load(persistent_file)
+                    print("Loaded data")
+            except (FileNotFoundError, json.JSONDecodeError):
+                print(f"The file not found {filepath}")
+            existing_data, max_id = self.convert_to_int(existing_data)
+            return existing_data, max_id
+        else:
+            raise FileNotFoundError(f"The file path {filepath} not found")
+        
+
+    def convert_to_int(self, data: dict):
+        new_data = {}
+        max_id = None
+        for key, value in data.items():
+            int_key = int(key)
+            new_data[int_key] = value
+            if max_id is None or max_id < int_key:
+                max_id = int_key
+        return new_data, max_id
     
     #Not in use as of now
     def add_single_data(self, 

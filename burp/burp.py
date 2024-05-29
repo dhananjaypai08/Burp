@@ -44,7 +44,7 @@ class Burp:
             raise ConnectionError(f"Something went wrong while trying to create a db instance with name {db_name}")
         if self.db_instance.check_exists(os.path.join(os.getcwd(), self.db_name)):
             # print(f"The database with name {table_name} already exists")
-            print(f"The database with name {db_name} already exists")
+            raise KeyError(f"The database with name {db_name} already exists")
         return self.db_instance
     
        
@@ -67,7 +67,7 @@ class Burp:
         self.filepath = filepath
         return self.filepath
     
-    def _table_name_id_exists(self, id:int):
+    def _table_name_id_exists(self, uid:int):
         """ Check if the table with self.table name exists
         and whether it contains id object in it
 
@@ -80,8 +80,8 @@ class Burp:
         """
         if self.table_name == "":
             raise KeyError(f"There is not table to search from")
-        if self.tables[self.table_name].get(id) is None:
-            raise KeyError(f"The id {id} does not exist in the table")
+        if self.tables[self.table_name].get(uid) is None:
+            raise KeyError(f"The id {uid} does not exist in the table")
         return True
     
     
@@ -99,7 +99,7 @@ class Burp:
         """
         
         if self.tables.get(table_name)  is not None:
-            print(f"A table with name {table_name} already exists")
+            raise KeyError(f"A table with name {table_name} already exists")
         self.tables[table_name] = {}
         if auto_increment:
             self.auto_inc_status = True
@@ -115,7 +115,7 @@ class Burp:
             self._create_table_file_and_save()
             print(f"The new database with name {table_name} has been created")
         except Exception as e:
-            print(f"An unexpected error occurred: {type(e).__name__} - {e}")
+            raise Exception(f"An unexpected error occurred: {type(e).__name__} - {e}")
     
     
     def add_one(self, data: dict):
@@ -130,7 +130,7 @@ class Burp:
             KeyError: The given structure does not match the predefined structure 
         """
         if self.table_name is  None:
-            print(f"A table with name {self.table_name} does not exists")
+            raise KeyError(f"A table with name {self.table_name} does not exists")
         # if list(data.keys()) != list(self.tables[table_name].keys()):
         #     raise KeyError(f"The schema of the given data does not match with the predefined schema")
         self.tables[self.table_name][self.auto_inc_id] = data
@@ -171,9 +171,10 @@ class Burp:
         Returns:
             str: status of the operation
         """
-        if self.table_name  is not None:
-            print(f"A table with name {self.table_name} already exists")
+        if self.table_name  is None:
+            raise KeyError(f"A table with name {self.table_name} already exists")
         self.db_instance.delete_file(self.table_name, self.db_name, self.settings.extension)
+        del self.tables[self.table_name]
         deleted_table = self.table_name
         self.table_name = None
         return f"Table with name: {deleted_table} has been deleted"
@@ -208,7 +209,7 @@ class Burp:
         if self.table_name == "":
             print("Table name does not exist")
         if self.tables.get(self.table_name) is None:
-            print("Table name not found")
+            raise KeyError("Table with name : {table_name} not found")
         status = self.db_instance.save_data(self.tables[self.table_name], self.table_name, self.db_name, self.settings.extension)
         if status:
             return "Data saved successfull"
@@ -217,6 +218,33 @@ class Burp:
     def _auto_increment_id(self):
         if self.auto_inc_status:
             self.auto_inc_id += 1
+            
+    
+    def load_data(self, db_name: str, table_name: str):
+        """ Load a persisting db table in memory
+
+        Args:
+            db_name (str): database name
+            table_name (str): table name
+
+        Returns:
+            str: message
+        """
+        if self.db_instance is None:
+            print("Intitiazling a new instance in memory")
+            status = self._create_db_instance()
+            if status:
+                print("New instance initialized")
+            else:
+                print("Something went wrong")
+        existing_data, max_uid = self.db_instance.load_data(db_name, table_name, self.settings.extension)
+        self.auto_inc_status = True
+        self.auto_inc_id = max_uid + 1
+        self.tables[table_name] = existing_data
+        self.table_name = table_name
+        self.db_name = db_name
+        print("Initialized the existing database table")
+        return "Loaded the data in memory"
     
     
     # This is will not work for now
