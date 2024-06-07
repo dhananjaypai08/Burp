@@ -2,3 +2,5 @@
 /env
 .env
 /burp/__pycache__/
+/API/__pycache__/
+/API/utils/__pycache__/

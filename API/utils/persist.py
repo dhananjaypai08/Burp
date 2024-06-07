@@ -62,7 +62,7 @@ class DataPersister:
         if not self.check_exists(db_filepath):
             # Create the folder if it doesn't exist
             os.makedirs(os.path.join(current_dir, foldername), exist_ok=True)  # exist_ok=True prevents errors if folder exists
-            print(os.path.join(current_dir, foldername))
+            # print(os.path.join(current_dir, foldername))
             #os.chmod(db_filepath, self.file_permissions)
             #os.chmod(os.path.join(os.getcwd(), foldername), self.directory_permissions)
         try:
@@ -73,8 +73,8 @@ class DataPersister:
             raise Exception(f"Error saving data to file: {db_filepath} with error {e}")
         else:
             print(f"The table {db_filepath} already exists")
-        print(db_filepath)
-        self.db_filepath = db_filepath
+        # print(db_filepath)
+        setattr(self, "db_filepath", db_filepath)
         return db_filepath
     
      
@@ -114,8 +114,8 @@ class DataPersister:
         if not encoding:
             encoding = self.settings.encoding
         filepath = os.path.join(current_dir, folder_name, file_name + extension)
-        self.filepath = filepath
-        print(self.filepath)
+        setattr(self, "filepath", filepath)
+        # print(self.filepath)
         if not self.check_exists(self.filepath):
             print(f"The given file path:  {filepath} does not exist")
         else:
@@ -134,25 +134,31 @@ class DataPersister:
         # except (FileNotFoundError, json.JSONDecodeError):
         #     print(f"The file not found {filepath}")
         # print(existing_data)
-        print(data)
+        # print(data)
         if encrypt:
             data = encrypt_data(fernet_instance, data)
-        try:
-            with open(self.filepath, 'w') as persistent_file:
-                print("Locking the file")
-                msvcrt.locking(persistent_file.fileno(), msvcrt.LK_NBLCK, 100)  # Acquire lock with timeout in 100ms
-                print("File locked")
-                persistent_file.write(data)
-                msvcrt.locking(persistent_file.fileno(), msvcrt.LK_UNLCK, 100) # Unlock the file
-                print("File unlocked")
-        # Load existing data as a dictionary  
-        except BlockingIOError:  # Handle lock acquisition timeout
-            print("Failed to acquire lock on file. Retrying...")
-            # Implement retry logic or error handling as needed
+            try:
+                with open(self.filepath, 'w') as persistent_file:
+                    print("Locking the file")
+                    msvcrt.locking(persistent_file.fileno(), msvcrt.LK_NBLCK, 100)  # Acquire lock with timeout in 100ms
+                    print("File locked")
+                    persistent_file.write(data)
+                    msvcrt.locking(persistent_file.fileno(), msvcrt.LK_UNLCK, 100) # Unlock the file
+                    print("File unlocked")
+            # Load existing data as a dictionary  
+            except BlockingIOError:  # Handle lock acquisition timeout
+                print("Failed to acquire lock on file. Retrying...")
+                # Implement retry logic or error handling as needed
 
-        finally:
-            # Release the lock after writing (assuming successful acquisition)
-            print(f"The status of the file is closed")
+            finally:
+                # Release the lock after writing (assuming successful acquisition)
+                print(f"The status of the file is closed")
+        else:
+            try:
+                with open(self.filepath, 'w') as persistent_file:
+                    json.dump(data, persistent_file, indent=4)
+            except Exception as e:
+                print(f"An error occured: {e}")
 
         return self.filepath
     
@@ -177,19 +183,19 @@ class DataPersister:
                     with open(self.filepath, 'r') as persistent_file:
                         encrypted_data = persistent_file.read()
                         existing_data = decrypt_data(fernet, encrypted_data)
-                        print(existing_data)
+                        # print(existing_data)
                         print("Loaded data")
                 except (FileNotFoundError, json.JSONDecodeError):
-                    print(f"The file not found {filepath}")
+                    return f"The file not found {filepath}"
                 existing_data, max_id = self.convert_to_int(existing_data)
                 return existing_data, max_id
             try:
                 with open(self.filepath, 'r') as persistent_file:
                     existing_data = json.load(persistent_file)
-                    print(existing_data)
+                    # print(existing_data)
                     print("Loaded data")
             except (FileNotFoundError, json.JSONDecodeError):
-                print(f"The file not found {filepath}")
+                return f"The file not found {filepath}"
             existing_data, max_id = self.convert_to_int(existing_data)
             return existing_data, max_id
         else:

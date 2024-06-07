@@ -5,11 +5,8 @@ from .generator import generate_key, create_fernet_instance
 class Burp:
     """
     Main class for the burp database
-    1 folder = 1 database
-    1 file = 1 table
     """
-    
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.settings = DataPersistSettings()
         self.COMMON_ENCODINGS = ["utf-8", "utf-16", "latin-1", "ascii"]
         self.db_name = None
@@ -24,11 +21,14 @@ class Burp:
         self.encryption_key = None
         self.encrypt = False
         self.fernet_instance = None
+        for key, value in kwargs.items():
+            if isinstance(key, str):
+                raise TypeError(f"Attribute names must be strings, got {key}")
+            setattr(self, key, value)
     
     
     def create_database(self, db_name: str, encoding=None, save="auto"):
         """
-
         Args:
             db_name (str): name of the database
             encoding (str, optional): encoding options for data persistence. Defaults to None.
@@ -43,18 +43,18 @@ class Burp:
                 raise ValueError("Please provide a valid common encoding format")
             self.settings.encoding = encoding
         self.settings.folder = db_name
-        self.db_name = db_name
+        setattr(self, "db_name", db_name)
         status = self._create_db_instance()
         if not status:
             raise ConnectionError(f"Something went wrong while trying to create a db instance with name {db_name}")
         if self.db_instance.check_exists(os.path.join(self.cur_dir, self.db_name)):
             # print(f"The database with name {table_name} already exists")
             raise KeyError(f"The database with name {db_name} already exists")
-        print(os.path.join(self.cur_dir, self.db_name))
         return self.db_instance
     
        
     def _create_db_instance(self):
+        """ Creates a new db instance """
         try:
             self.db_instance = DataPersister(self.settings)
         except Exception as e:
@@ -65,12 +65,11 @@ class Burp:
     
     def _create_table_file_and_save(self):
         """create a new table
-
         Returns:
             str: file path
         """
         filepath = self.db_instance.create_table_file(self.table_name, self.db_name, self.cur_dir)
-        self.filepath = filepath
+        setattr(self, "filepath", filepath)
         return self.filepath
     
     
@@ -110,11 +109,10 @@ class Burp:
         self.tables[table_name] = {}
         if auto_increment:
             self.auto_inc_status = True
-
         if encrypt:
-            self.encryption_key = generate_key()
+            setattr(self, "encryption_key", generate_key())
+            setattr(self, "fernet_instance", create_fernet_instance(self.encryption_key))
             self.encrypt = True
-            self.fernet_instance = create_fernet_instance(self.encryption_key)
         
         filepath = os.path.join(self.cur_dir, table_name + self.settings.extension)
         if self.db_instance.check_exists(filepath):
@@ -122,7 +120,7 @@ class Burp:
             return f"The table with name {table_name} already exists"
         if extension:
             self.settings.extension = extension
-        self.table_name = table_name
+        setattr(self, "table_name", table_name)
         try:
             self._create_table_file_and_save()
             print(f"The new database table with name {table_name} has been created")
@@ -160,7 +158,7 @@ class Burp:
         if not self._table_name_id_exists(id):
             print("ID or table not found")
         del self.tables[self.table_name][id]
-        print(self.tables)
+        # print(self.tables)
         return f"Deleted the id {id} successfully"
     
     
@@ -172,7 +170,7 @@ class Burp:
             data (dict): data which is to be updated 
         """
         if not self._table_name_id_exists(id):
-            print("ID or table not found")
+            return "ID or table not found"
         for key, value in data.items():
             self.tables[self.table_name][id][key] = value
         return self.tables[self.table_name][id]
@@ -188,7 +186,12 @@ class Burp:
         self.db_instance.delete_file(self.table_name, self.db_name, self.settings.extension)
         del self.tables[self.table_name]
         deleted_table = self.table_name
-        self.table_name = None
+        setattr(self, "table_name", None)
+        setattr(self, "auto_inc_status", False)
+        setattr(self, "auto_inc_id", 0)
+        self.fernet_instance = None
+        self.encryption_key = None
+        self.encrypt = False
         return f"Table with name: {deleted_table} has been deleted"
     
     
@@ -220,7 +223,7 @@ class Burp:
             str: Message 
         """
         if self.table_name == "":
-            print("Table name does not exist")
+            return "Table name does not exist"
         if self.tables.get(self.table_name) is None:
             raise KeyError("Table with name : {table_name} not found")
         status = self.db_instance.save_data(self.tables[self.table_name], self.table_name, self.db_name, self.cur_dir,
@@ -254,15 +257,15 @@ class Burp:
             else:
                 print("Something went wrong")
         if encrypt:
-            self.encrypt = encrypt
-            self.encryption_key = key
-            self.fernet_instance = create_fernet_instance(key)
+            setattr(self, "encrypt", encrypt)
+            setattr(self, "encryption_key", key)
+            setattr(self, "fernet_instance", create_fernet_instance(key))
         existing_data, max_uid = self.db_instance.load_data(db_name, table_name, self.settings.extension, self.cur_dir, self.encrypt, self.fernet_instance)
         self.auto_inc_status = True
         self.auto_inc_id = max_uid + 1
         self.tables[table_name] = existing_data
-        self.table_name = table_name
-        self.db_name = db_name
+        setattr(self, "table_name", table_name)
+        setattr(self, "db_name", db_name)
         print("Initialized the existing database table")
         return "Loaded the data in memory"
     
